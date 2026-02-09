@@ -1,8 +1,27 @@
 #!/bin/bash
 # Build-Script für dkd Sprint Tracker
 # Voraussetzung: Xcode Command Line Tools installiert
+#
+# Usage:
+#   ./build.sh          — Build only (unsigned)
+#   ./build.sh --sign   — Build + Code Sign + Notarize
+#
+# Für --sign werden benötigt:
+#   DEVELOPER_ID   — "Developer ID Application: Name (TEAM_ID)" Zertifikat in Keychain
+#   APPLE_ID       — Apple ID E-Mail
+#   TEAM_ID        — Apple Developer Team ID
+#   APP_PASSWORD   — App-spezifisches Passwort (appleid.apple.com → App-Specific Passwords)
 
 set -e
+
+SIGN=false
+if [[ "$1" == "--sign" ]]; then
+    SIGN=true
+    : "${DEVELOPER_ID:?Setze DEVELOPER_ID, z.B. export DEVELOPER_ID=\"Developer ID Application: Max Mustermann (ABC123)\"}"
+    : "${APPLE_ID:?Setze APPLE_ID, z.B. export APPLE_ID=\"max@example.com\"}"
+    : "${TEAM_ID:?Setze TEAM_ID, z.B. export TEAM_ID=\"ABC123\"}"
+    : "${APP_PASSWORD:?Setze APP_PASSWORD (App-spezifisches Passwort von appleid.apple.com)}"
+fi
 
 echo "🏗️  Building dkd Sprint Tracker..."
 
@@ -72,24 +91,58 @@ cat > "$APP_NAME/Contents/Info.plist" << 'PLIST'
 </plist>
 PLIST
 
-# Gatekeeper-Quarantäne direkt entfernen
-xattr -cr "$APP_NAME" 2>/dev/null || true
+# Code Signing + Notarization
+if [[ "$SIGN" == true ]]; then
+    echo "🔏 Signing with Developer ID..."
+    codesign --force --options runtime --sign "$DEVELOPER_ID" "$APP_NAME"
+    codesign --verify --deep --strict "$APP_NAME"
+    echo "✅ Code Signing erfolgreich"
+
+    echo "📤 Notarization bei Apple einreichen..."
+    ditto -c -k --keepParent "$APP_NAME" "/tmp/dkd-notarize.zip"
+    xcrun notarytool submit "/tmp/dkd-notarize.zip" \
+        --apple-id "$APPLE_ID" \
+        --team-id "$TEAM_ID" \
+        --password "$APP_PASSWORD" \
+        --wait
+    rm -f "/tmp/dkd-notarize.zip"
+    echo "✅ Notarization erfolgreich"
+
+    echo "📎 Stapling Notarization-Ticket..."
+    xcrun stapler staple "$APP_NAME"
+    echo "✅ Staple erfolgreich"
+else
+    # Ohne Signing: Quarantäne-Attribute entfernen
+    xattr -c "$APP_NAME" 2>/dev/null || true
+fi
 
 echo "📦 App-Bundle erstellt: $APP_NAME"
 echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Installation:"
-echo "  cp -r '$APP_NAME' /Applications/"
-echo "  xattr -cr '/Applications/$APP_NAME'"
-echo ""
-echo "Starten:"
-echo "  open '/Applications/$APP_NAME'"
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "⚠️  Falls die App TROTZDEM nicht öffnet:"
-echo ""
-echo "  1. Rechtsklick auf die App → 'Öffnen' → 'Öffnen' bestätigen"
-echo ""
-echo "  2. Oder: Systemeinstellungen → Datenschutz & Sicherheit"
-echo "     → 'Trotzdem öffnen' klicken"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+if [[ "$SIGN" == true ]]; then
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "✅ App ist signiert und notarisiert!"
+    echo ""
+    echo "Installation:"
+    echo "  cp -r '$APP_NAME' /Applications/"
+    echo ""
+    echo "Starten:"
+    echo "  open '/Applications/$APP_NAME'"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+else
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "Installation:"
+    echo "  cp -r '$APP_NAME' /Applications/"
+    echo "  xattr -c '/Applications/$APP_NAME'"
+    echo ""
+    echo "Starten:"
+    echo "  open '/Applications/$APP_NAME'"
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "⚠️  Falls die App TROTZDEM nicht öffnet:"
+    echo ""
+    echo "  1. Rechtsklick auf die App → 'Öffnen' → 'Öffnen' bestätigen"
+    echo ""
+    echo "  2. Oder: Systemeinstellungen → Datenschutz & Sicherheit"
+    echo "     → 'Trotzdem öffnen' klicken"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+fi
