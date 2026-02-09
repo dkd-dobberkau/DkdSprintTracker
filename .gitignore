@@ -1,0 +1,20 @@
+# Build artifacts
+DkdSprintTracker
+DkdSprintTracker-arm64
+DkdSprintTracker-x86_64
+generate_icon
+dkd Sprint Tracker.app/
+AppIcon.icns
+AppIcon.iconset/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+*.xcodeproj/
+*.xcworkspace/
+
+# Claude Code
+.claude/
+.codegraph/
