@@ -147,15 +147,10 @@ struct SprintInfo {
 func firstMondayOfYear(_ year: Int) -> Date {
     let calendar = Calendar(identifier: .iso8601)
     var components = DateComponents()
-    components.year = year
-    components.month = 1
-    components.day = 1
-
-    let jan1 = calendar.date(from: components)!
-    let weekday = calendar.component(.weekday, from: jan1)
-    let daysToMonday = (9 - weekday) % 7
-    let firstMonday = daysToMonday == 0 ? jan1 : calendar.date(byAdding: .day, value: daysToMonday, to: jan1)!
-    return firstMonday
+    components.yearForWeekOfYear = year
+    components.weekOfYear = 1
+    components.weekday = 2  // Montag
+    return calendar.date(from: components)!
 }
 
 func snapToMonday(_ date: Date) -> Date {
@@ -285,7 +280,7 @@ class AboutWindowController: NSObject {
         contentView.addSubview(titleLabel)
 
         // Version
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.1.0"
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.2.0"
         let versionLabel = NSTextField(labelWithString: "Version \(version)")
         versionLabel.font = NSFont.systemFont(ofSize: 12)
         versionLabel.textColor = .secondaryLabelColor
