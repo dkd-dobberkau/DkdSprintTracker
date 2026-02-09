@@ -133,6 +133,15 @@ struct SprintInfo {
     var remainingDays: Int {
         return totalDays - currentDay
     }
+
+    /// Sprint-Label im dkd-Format: "2026-KW05-KW06"
+    var label: String {
+        let calendar = Calendar(identifier: .iso8601)
+        let isoYear = calendar.component(.yearForWeekOfYear, from: startDate)
+        let kwStart = calendar.component(.weekOfYear, from: startDate)
+        let kwEnd = calendar.component(.weekOfYear, from: endDate)
+        return String(format: "%d-KW%02d-KW%02d", isoYear, kwStart, kwEnd)
+    }
 }
 
 func firstMondayOfYear(_ year: Int) -> Date {
@@ -226,11 +235,6 @@ func formatDate(_ date: Date) -> String {
     let formatter = DateFormatter()
     formatter.dateFormat = "dd.MM."
     return formatter.string(from: date)
-}
-
-func calendarWeek(for date: Date) -> Int {
-    let calendar = Calendar(identifier: .iso8601)
-    return calendar.component(.weekOfYear, from: date)
 }
 
 func isActualWeekend() -> Bool {
@@ -686,10 +690,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func updateDisplay() {
         let sprint = calculateCurrentSprint()
         statusItem.button?.title = menuBarTitle(sprint: sprint)
-
-        let kwStart = calendarWeek(for: sprint.startDate)
-        let kwEnd = calendarWeek(for: sprint.endDate)
-        statusItem.button?.toolTip = "dkd Sprint \(sprint.number) (KW\(kwStart)–KW\(kwEnd))\n\(formatDate(sprint.startDate))–\(formatDate(sprint.endDate))\nNoch \(sprint.remainingDays) Arbeitstage"
+        statusItem.button?.toolTip = "dkd \(sprint.label)\n\(formatDate(sprint.startDate))–\(formatDate(sprint.endDate))\nNoch \(sprint.remainingDays) Arbeitstage"
 
         setupMenu(sprint: sprint)
     }
@@ -699,7 +700,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         var parts: [String] = []
 
         if settings.showSprintNumber {
-            parts.append("Sprint \(sprint.number)")
+            parts.append(sprint.label)
         }
 
         if sprint.isNonWorkingDay && settings.nonWorkingDisplay == "frei" {
@@ -723,24 +724,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func setupMenu(sprint: SprintInfo) {
         let settings = SprintSettings.shared
         let menu = NSMenu()
-        let kwStart = calendarWeek(for: sprint.startDate)
-        let kwEnd = calendarWeek(for: sprint.endDate)
 
         // Sprint-Info Header
-        let headerItem = NSMenuItem(title: "dkd Sprint \(sprint.number)", action: nil, keyEquivalent: "")
+        let headerItem = NSMenuItem(title: "dkd \(sprint.label)", action: nil, keyEquivalent: "")
         headerItem.isEnabled = false
         headerItem.attributedTitle = NSAttributedString(
-            string: "dkd Sprint \(sprint.number)",
+            string: "dkd \(sprint.label)",
             attributes: [.font: NSFont.boldSystemFont(ofSize: 14)]
         )
         menu.addItem(headerItem)
 
         menu.addItem(NSMenuItem.separator())
-
-        // Kalenderwochen
-        let kwItem = NSMenuItem(title: "📅 KW \(kwStart) – KW \(kwEnd)", action: nil, keyEquivalent: "")
-        kwItem.isEnabled = false
-        menu.addItem(kwItem)
 
         // Zeitraum
         let dateItem = NSMenuItem(title: "📆 \(formatDate(sprint.startDate)) – \(formatDate(sprint.endDate))", action: nil, keyEquivalent: "")
