@@ -9,11 +9,13 @@ echo "🏗️  Building dkd Sprint Tracker..."
 # Universal Binary (arm64 + x86_64)
 swiftc -o DkdSprintTracker-arm64 \
     -framework Cocoa \
+    -framework ServiceManagement \
     -target arm64-apple-macos13 \
     DkdSprintTracker.swift
 
 swiftc -o DkdSprintTracker-x86_64 \
     -framework Cocoa \
+    -framework ServiceManagement \
     -target x86_64-apple-macos13 \
     DkdSprintTracker.swift
 
@@ -51,9 +53,9 @@ cat > "$APP_NAME/Contents/Info.plist" << 'PLIST'
     <key>CFBundleIdentifier</key>
     <string>de.dkd.sprint-tracker</string>
     <key>CFBundleVersion</key>
-    <string>1.0</string>
+    <string>1.1.0</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
+    <string>1.1.0</string>
     <key>CFBundleExecutable</key>
     <string>DkdSprintTracker</string>
     <key>CFBundlePackageType</key>
