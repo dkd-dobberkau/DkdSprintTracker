@@ -26,10 +26,10 @@ macOS menu bar app that displays the current dkd sprint number and working day.
 
 ```bash
 brew tap dkd-dobberkau/tap
-brew install dkd-sprint-tracker
+brew install --cask dkd-sprint-tracker
 ```
 
-After installation, start the app:
+The app is installed directly to `/Applications`. Start it from there or with:
 
 ```bash
 open "/Applications/dkd Sprint Tracker.app"
@@ -52,11 +52,13 @@ System Settings → General → Login Items → `+` → select "dkd Sprint Track
 
 ## Customization
 
-Edit `DkdSprintTracker.swift`:
+Use the built-in Settings window (⌘,) to configure:
 
-- **Sprint epoch**: `firstMondayOfYear()` — change the sprint start reference
-- **Sprint length**: 10 working days in `calculateCurrentSprint()`
-- **Refresh interval**: `3600` seconds in `applicationDidFinishLaunching`
+- **Sprint start date**, duration (1–4 weeks), working days (Mon–Sun)
+- **Display**: emoji, sprint number, day count on/off
+- **Non-working days**: show "Frei", last working day, or next working day
+- **Refresh interval**: 15 / 30 / 60 minutes
+- **Launch at login**
 
 ## License
 
