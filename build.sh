@@ -3,8 +3,9 @@
 # Voraussetzung: Xcode Command Line Tools installiert
 #
 # Usage:
-#   ./build.sh          — Build only (unsigned)
-#   ./build.sh --sign   — Build + Code Sign + Notarize
+#   ./build.sh                — Build only (unsigned)
+#   ./build.sh --sign         — Build + Code Sign + Notarize
+#   ./build.sh --sign --dmg   — Build + Code Sign + Notarize + DMG erstellen
 #
 # Für --sign werden benötigt:
 #   DEVELOPER_ID   — "Developer ID Application: Name (TEAM_ID)" Zertifikat in Keychain
@@ -15,12 +16,24 @@
 set -e
 
 SIGN=false
-if [[ "$1" == "--sign" ]]; then
-    SIGN=true
+DMG=false
+for arg in "$@"; do
+    case "$arg" in
+        --sign) SIGN=true ;;
+        --dmg)  DMG=true ;;
+    esac
+done
+
+if [[ "$SIGN" == true ]]; then
     : "${DEVELOPER_ID:?Setze DEVELOPER_ID, z.B. export DEVELOPER_ID=\"Developer ID Application: Max Mustermann (ABC123)\"}"
     : "${APPLE_ID:?Setze APPLE_ID, z.B. export APPLE_ID=\"max@example.com\"}"
     : "${TEAM_ID:?Setze TEAM_ID, z.B. export TEAM_ID=\"ABC123\"}"
     : "${APP_PASSWORD:?Setze APP_PASSWORD (App-spezifisches Passwort von appleid.apple.com)}"
+fi
+
+if [[ "$DMG" == true && "$SIGN" != true ]]; then
+    echo "⚠️  --dmg erfordert --sign (unsignierte DMGs machen keinen Sinn)"
+    exit 1
 fi
 
 echo "🏗️  Building dkd Sprint Tracker..."
@@ -117,6 +130,21 @@ else
 fi
 
 echo "📦 App-Bundle erstellt: $APP_NAME"
+
+# DMG erstellen
+if [[ "$DMG" == true ]]; then
+    VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP_NAME/Contents/Info.plist")
+    DMG_FILE="DkdSprintTracker-${VERSION}.dmg"
+    echo ""
+    echo "💿 DMG erstellen..."
+    TEMP_DMG=$(mktemp -d)
+    cp -R "$APP_NAME" "$TEMP_DMG/"
+    ln -s /Applications "$TEMP_DMG/Applications"
+    hdiutil create -volname "dkd Sprint Tracker" -srcfolder "$TEMP_DMG" -ov -format UDZO "$DMG_FILE"
+    rm -rf "$TEMP_DMG"
+    echo "✅ DMG erstellt: $DMG_FILE ($(du -h "$DMG_FILE" | cut -f1 | xargs))"
+fi
+
 echo ""
 if [[ "$SIGN" == true ]]; then
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -127,6 +155,11 @@ if [[ "$SIGN" == true ]]; then
     echo ""
     echo "Starten:"
     echo "  open '/Applications/$APP_NAME'"
+    if [[ "$DMG" == true ]]; then
+        echo ""
+        echo "DMG für Kollegen:"
+        echo "  $DMG_FILE"
+    fi
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 else
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
