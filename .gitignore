@@ -6,6 +6,10 @@ generate_icon
 dkd Sprint Tracker.app/
 AppIcon.icns
 AppIcon.iconset/
+*.dmg
+
+# Screenshots
+*.png
 
 # macOS
 .DS_Store
@@ -14,6 +18,9 @@ AppIcon.iconset/
 .vscode/
 *.xcodeproj/
 *.xcworkspace/
+
+# Playwright MCP
+.playwright-mcp/
 
 # Claude Code
 .claude/
