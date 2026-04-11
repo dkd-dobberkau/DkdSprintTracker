@@ -25,3 +25,4 @@ AppIcon.iconset/
 # Claude Code
 .claude/
 .codegraph/
+.env

@@ -25,6 +25,10 @@ for arg in "$@"; do
 done
 
 if [[ "$SIGN" == true ]]; then
+    # .env laden falls vorhanden
+    if [[ -f .env ]]; then
+        set -a; source .env; set +a
+    fi
     : "${DEVELOPER_ID:?Setze DEVELOPER_ID, z.B. export DEVELOPER_ID=\"Developer ID Application: Max Mustermann (ABC123)\"}"
     : "${APPLE_ID:?Setze APPLE_ID, z.B. export APPLE_ID=\"max@example.com\"}"
     : "${TEAM_ID:?Setze TEAM_ID, z.B. export TEAM_ID=\"ABC123\"}"
@@ -85,9 +89,9 @@ cat > "$APP_NAME/Contents/Info.plist" << 'PLIST'
     <key>CFBundleIdentifier</key>
     <string>de.dkd.sprint-tracker</string>
     <key>CFBundleVersion</key>
-    <string>1.2.0</string>
+    <string>1.3.0</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.2.0</string>
+    <string>1.3.0</string>
     <key>CFBundleExecutable</key>
     <string>DkdSprintTracker</string>
     <key>CFBundlePackageType</key>
