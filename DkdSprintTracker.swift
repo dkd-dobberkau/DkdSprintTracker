@@ -23,6 +23,7 @@ class SprintSettings {
         static let nonWorkingDisplay = "nonWorkingDisplay"
         static let refreshInterval = "refreshInterval"
         static let launchAtLogin = "launchAtLogin"
+        static let compactMode = "compactMode"
     }
 
     init() {
@@ -34,7 +35,8 @@ class SprintSettings {
             Keys.showDayCount: true,
             Keys.nonWorkingDisplay: "frei",
             Keys.refreshInterval: 3600.0,
-            Keys.launchAtLogin: false
+            Keys.launchAtLogin: false,
+            Keys.compactMode: false
         ])
     }
 
@@ -91,6 +93,11 @@ class SprintSettings {
         set { defaults.set(newValue, forKey: Keys.launchAtLogin) }
     }
 
+    var compactMode: Bool {
+        get { defaults.bool(forKey: Keys.compactMode) }
+        set { defaults.set(newValue, forKey: Keys.compactMode) }
+    }
+
     func defaultSprintEpoch() -> Date {
         let calendar = Calendar(identifier: .iso8601)
         let year = calendar.component(.year, from: Date())
@@ -100,7 +107,8 @@ class SprintSettings {
     func resetAll() {
         let keys = [Keys.sprintStartDate, Keys.sprintWeeks, Keys.workingWeekdays,
                     Keys.showEmoji, Keys.showSprintNumber, Keys.showDayCount,
-                    Keys.nonWorkingDisplay, Keys.refreshInterval, Keys.launchAtLogin]
+                    Keys.nonWorkingDisplay, Keys.refreshInterval, Keys.launchAtLogin,
+                    Keys.compactMode]
         for key in keys {
             defaults.removeObject(forKey: key)
         }
@@ -141,6 +149,14 @@ struct SprintInfo {
         let kwStart = calendar.component(.weekOfYear, from: startDate)
         let kwEnd = calendar.component(.weekOfYear, from: endDate)
         return String(format: "%d-KW%02d-KW%02d", isoYear, kwStart, kwEnd)
+    }
+
+    /// Kompakt-Label ohne Jahreszahl: "KW15-KW16"
+    var compactLabel: String {
+        let calendar = Calendar(identifier: .iso8601)
+        let kwStart = calendar.component(.weekOfYear, from: startDate)
+        let kwEnd = calendar.component(.weekOfYear, from: endDate)
+        return String(format: "KW%02d-KW%02d", kwStart, kwEnd)
     }
 }
 
@@ -344,6 +360,7 @@ class SettingsWindowController: NSObject {
     private var dayCountCheckbox: NSButton!
     private var nonWorkingPopup: NSPopUpButton!
     private var refreshPopup: NSPopUpButton!
+    private var compactModeCheckbox: NSButton!
     private var loginCheckbox: NSButton!
 
     func showWindow() {
@@ -354,7 +371,7 @@ class SettingsWindowController: NSObject {
         }
 
         let w = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 460, height: 470),
+            contentRect: NSRect(x: 0, y: 0, width: 460, height: 496),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -478,6 +495,12 @@ class SettingsWindowController: NSObject {
         dayCountCheckbox.frame = NSRect(x: controlX, y: y, width: 250, height: 20)
         contentView.addSubview(dayCountCheckbox)
 
+        y += 26
+
+        compactModeCheckbox = NSButton(checkboxWithTitle: "Kompakt (nur KW, ohne Jahr)", target: self, action: #selector(checkboxChanged))
+        compactModeCheckbox.frame = NSRect(x: controlX, y: y, width: 250, height: 20)
+        contentView.addSubview(compactModeCheckbox)
+
         y += 30
 
         let nonWorkLabel = NSTextField(labelWithString: "An freien Tagen:")
@@ -561,6 +584,7 @@ class SettingsWindowController: NSObject {
         emojiCheckbox.state = settings.showEmoji ? .on : .off
         sprintNumberCheckbox.state = settings.showSprintNumber ? .on : .off
         dayCountCheckbox.state = settings.showDayCount ? .on : .off
+        compactModeCheckbox.state = settings.compactMode ? .on : .off
 
         let displayOptions = ["frei", "letzter", "naechster"]
         if let idx = displayOptions.firstIndex(of: settings.nonWorkingDisplay) {
@@ -610,6 +634,7 @@ class SettingsWindowController: NSObject {
         SprintSettings.shared.showEmoji = emojiCheckbox.state == .on
         SprintSettings.shared.showSprintNumber = sprintNumberCheckbox.state == .on
         SprintSettings.shared.showDayCount = dayCountCheckbox.state == .on
+        SprintSettings.shared.compactMode = compactModeCheckbox.state == .on
         onSettingsChanged?()
     }
 
@@ -685,7 +710,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func updateDisplay() {
         let sprint = calculateCurrentSprint()
         statusItem.button?.title = menuBarTitle(sprint: sprint)
-        statusItem.button?.toolTip = "dkd \(sprint.label)\n\(formatDate(sprint.startDate))–\(formatDate(sprint.endDate))\nNoch \(sprint.remainingDays) Arbeitstage"
+        let tooltipLabel = SprintSettings.shared.compactMode ? sprint.compactLabel : sprint.label
+        statusItem.button?.toolTip = "dkd \(tooltipLabel)\n\(formatDate(sprint.startDate))–\(formatDate(sprint.endDate))\nNoch \(sprint.remainingDays) Arbeitstage"
 
         setupMenu(sprint: sprint)
     }
@@ -695,7 +721,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         var parts: [String] = []
 
         if settings.showSprintNumber {
-            parts.append(sprint.label)
+            parts.append(settings.compactMode ? sprint.compactLabel : sprint.label)
         }
 
         if sprint.isNonWorkingDay && settings.nonWorkingDisplay == "frei" {
@@ -721,10 +747,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
 
         // Sprint-Info Header
-        let headerItem = NSMenuItem(title: "dkd \(sprint.label)", action: nil, keyEquivalent: "")
+        let displayLabel = settings.compactMode ? sprint.compactLabel : sprint.label
+        let headerItem = NSMenuItem(title: "dkd \(displayLabel)", action: nil, keyEquivalent: "")
         headerItem.isEnabled = false
         headerItem.attributedTitle = NSAttributedString(
-            string: "dkd \(sprint.label)",
+            string: "dkd \(displayLabel)",
             attributes: [.font: NSFont.boldSystemFont(ofSize: 14)]
         )
         menu.addItem(headerItem)
