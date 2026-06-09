@@ -1,0 +1,79 @@
+name: Update Homebrew Cask
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish (e.g. v1.3.0)"
+        required: true
+
+jobs:
+  update-cask:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve release info
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.release.tag_name || github.event.inputs.tag }}"
+          if [[ -z "$TAG" ]]; then
+            echo "::error::No release tag available"
+            exit 1
+          fi
+          VERSION="${TAG#v}"
+          DMG_NAME="DkdSprintTracker-${VERSION}.dmg"
+          DMG_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${DMG_NAME}"
+          echo "tag=${TAG}"         >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "dmg_url=${DMG_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Download DMG and compute SHA256
+        id: hash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o release.dmg "${{ steps.release.outputs.dmg_url }}"
+          SHA=$(sha256sum release.dmg | awk '{print $1}')
+          echo "sha256=${SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout homebrew-tap
+        uses: actions/checkout@v4
+        with:
+          repository: dkd-dobberkau/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Update cask file
+        run: |
+          set -euo pipefail
+          CASK="homebrew-tap/Casks/dkd-sprint-tracker.rb"
+          VERSION="${{ steps.release.outputs.version }}"
+          SHA="${{ steps.hash.outputs.sha256 }}"
+          python3 - "$CASK" "$VERSION" "$SHA" <<'PY'
+          import re, sys, pathlib
+          path, version, sha = sys.argv[1], sys.argv[2], sys.argv[3]
+          p = pathlib.Path(path)
+          src = p.read_text()
+          src = re.sub(r'version "[^"]+"', f'version "{version}"', src, count=1)
+          src = re.sub(r'sha256 "[^"]+"', f'sha256 "{sha}"', src, count=1)
+          p.write_text(src)
+          PY
+          echo "--- Updated cask ---"
+          cat "$CASK"
+
+      - name: Commit and push
+        working-directory: homebrew-tap
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/dkd-sprint-tracker.rb
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "Brew cask update for dkd-sprint-tracker version ${{ steps.release.outputs.tag }}"
+          git push
